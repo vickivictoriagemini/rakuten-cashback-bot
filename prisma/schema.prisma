@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model FocusTarget {
+  id        Int      @id @default(autoincrement())
+  name      String   // e.g., "Nike"
+  keyword   String   // e.g., "nike"
+  threshold Float    // e.g., 10.0 meaning 10%
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SystemSetting {
+  id              Int      @id @default(1)
+  telegramToken   String   @default("")
+  telegramChatId  String   @default("")
+  globalThreshold Float    @default(15.0) // General high cashback threshold
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ScrapeLog {
+  id        Int      @id @default(autoincrement())
+  status    String   // "SUCCESS" or "ERROR"
+  message   String?
+  createdAt DateTime @default(now())
+}
+
+model StoreOffer {
+  id        Int      @id @default(autoincrement())
+  storeName String
+  cashback  String   // e.g., "10.0% Cash Back"
+  rate      Float    // e.g., 10.0
+  url       String
+  date      DateTime @default(now())
+}
