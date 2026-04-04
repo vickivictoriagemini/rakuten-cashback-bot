@@ -90,24 +90,8 @@ export async function runScraper() {
        )
     }
 
-    const highValueTargets: ScrapedOffer[] = []
-    const triggeredFocusTargets: { target: any, offer: ScrapedOffer }[] = []
-
+    // Save to Database (we only need to do this once for the global list of offers)
     for (const offer of mockOffers) {
-      if (offer.rate >= globalThreshold) {
-        highValueTargets.push(offer)
-      }
-
-      for (const target of focusTargets) {
-        if (
-          offer.storeName.toLowerCase().includes(target.keyword.toLowerCase()) &&
-          offer.rate >= target.threshold
-        ) {
-          triggeredFocusTargets.push({ target, offer })
-          break
-        }
-      }
-
       await prisma.storeOffer.create({
         data: {
           storeName: offer.storeName,
@@ -118,43 +102,78 @@ export async function runScraper() {
       })
     }
 
-    let message = '📊 *Rakuten Daily Review* 📊\n\n'
-    let hasMessage = false
-
-    if (mockOffers.length > 0) {
-      hasMessage = true
-      message += `🏆 *Top 3 Offers Today*:\n`
-      const top3 = mockOffers.slice(0, 3)
-      const medals = ['🥇', '🥈', '🥉']
-      top3.forEach((o, index) => {
-        message += `${medals[index]} <a href="${o.url}"><b>${o.storeName}</b></a>: ${o.cashback}\n`
-      })
-      message += '\n'
+    // Now broadcast to each subscriber
+    const subscribers = await prisma.telegramSubscriber.findMany()
+    const chatIds = new Set<string>()
+    if (settings && settings.telegramChatId) {
+      chatIds.add(settings.telegramChatId.toString())
     }
+    subscribers.forEach((sub: any) => chatIds.add(sub.chatId))
+    
+    let sentCount = 0
 
-    if (highValueTargets.length > 0) {
-      hasMessage = true
-      message += `🔥 *High Cashback Rates (>= ${globalThreshold}%)*:\n`
-      highValueTargets.forEach(o => {
-        message += `- <a href="${o.url}"><b>${o.storeName}</b></a>: ${o.cashback}\n`
-      })
-      message += '\n'
-    }
+    // Send tailored notification for each registered chat
+    for (const chatId of chatIds) {
+      const myTargets = focusTargets.filter((t: any) => t.chatId === chatId || t.chatId === null || t.chatId === '')
+      
+      const highValueTargets: ScrapedOffer[] = []
+      const triggeredFocusTargets: { target: any, offer: ScrapedOffer }[] = []
+      
+      for (const offer of mockOffers) {
+        if (offer.rate >= globalThreshold) {
+          highValueTargets.push(offer)
+        }
+        
+        for (const target of myTargets) {
+          if (
+            offer.storeName.toLowerCase().includes(target.keyword.toLowerCase()) &&
+            offer.rate >= target.threshold
+          ) {
+            triggeredFocusTargets.push({ target, offer })
+            break
+          }
+        }
+      }
 
-    if (triggeredFocusTargets.length > 0) {
-      hasMessage = true
-      message += `🎯 *Focus Targets Reached*:\n`
-      triggeredFocusTargets.forEach(({ target, offer }) => {
-        message += `✅ <a href="${offer.url}"><b>${target.name}</b></a> reached: ${offer.cashback} (Threshold: ${target.threshold}%)\n`
-      })
-    }
+      let message = '📊 *Rakuten Daily Review* 📊\n\n'
+      let hasMessage = false
 
-    if (hasMessage) {
-      await sendTelegramMessage(message)
+      if (mockOffers.length > 0) {
+        hasMessage = true
+        message += `🏆 *Top 3 Offers Today*:\n`
+        const top3 = mockOffers.slice(0, 3)
+        const medals = ['🥇', '🥈', '🥉']
+        top3.forEach((o, index) => {
+          message += `${medals[index]} <a href="${o.url}"><b>${o.storeName}</b></a>: ${o.cashback}\n`
+        })
+        message += '\n'
+      }
+
+      if (highValueTargets.length > 0) {
+        hasMessage = true
+        message += `🔥 *High Cashback Rates (>= ${globalThreshold}%)*:\n`
+        highValueTargets.forEach(o => {
+          message += `- <a href="${o.url}"><b>${o.storeName}</b></a>: ${o.cashback}\n`
+        })
+        message += '\n'
+      }
+
+      if (triggeredFocusTargets.length > 0) {
+        hasMessage = true
+        message += `🎯 *Focus Targets Reached*:\n`
+        triggeredFocusTargets.forEach(({ target, offer }) => {
+          message += `✅ <a href="${offer.url}"><b>${target.name}</b></a> reached: ${offer.cashback} (Threshold: ${target.threshold}%)\n`
+        })
+      }
+
+      if (hasMessage) {
+        const sent = await sendTelegramMessage(chatId, message)
+        if (sent) sentCount++
+      }
     }
 
     await prisma.scrapeLog.create({
-      data: { status: 'SUCCESS', message: `Scraped ${mockOffers.length} offers from Rakuten. Sent msg: ${hasMessage}` }
+      data: { status: 'SUCCESS', message: `Scraped ${mockOffers.length} offers. Sent to ${sentCount} users.` }
     })
 
     return { success: true, offers: mockOffers }

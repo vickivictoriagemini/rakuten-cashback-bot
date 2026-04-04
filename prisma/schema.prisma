@@ -9,6 +9,7 @@ datasource db {
 
 model FocusTarget {
   id        Int      @id @default(autoincrement())
+  chatId    String?  // The Telegram Chat ID this target belongs to. Null = Global Admin
   name      String   // e.g., "Nike"
   keyword   String   // e.g., "nike"
   threshold Float    // e.g., 10.0 meaning 10%
@@ -30,6 +31,14 @@ model ScrapeLog {
   status    String   // "SUCCESS" or "ERROR"
   message   String?
   createdAt DateTime @default(now())
+}
+
+model TelegramSubscriber {
+  id         String   @id @default(cuid())
+  chatId     String   @unique
+  name       String?
+  source     String?  // e.g. "group", "private"
+  joinedAt   DateTime @default(now())
 }
 
 model StoreOffer {

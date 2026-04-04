@@ -16,24 +16,21 @@ export async function getTelegramBot() {
   return botInstance
 }
 
-export async function sendTelegramMessage(message: string) {
+export async function sendTelegramMessage(chatId: string, message: string) {
   try {
-    const settings = await prisma.systemSetting.findFirst()
-    if (!settings || !settings.telegramToken || !settings.telegramChatId) {
-      console.log('Telegram settings not configured')
-      return false
-    }
-
     const bot = await getTelegramBot()
     if (!bot) return false
 
-    await bot.sendMessage(settings.telegramChatId, message, {
+    await bot.sendMessage(chatId, message, {
       parse_mode: 'HTML',
       disable_web_page_preview: true
+    }).catch(err => {
+        console.error(`Failed to send message to ${chatId}:`, err.message)
     })
+
     return true
   } catch (error) {
-    console.error('Failed to send telegram message:', error)
+    console.error('Failed to send telegram message to', chatId, error)
     return false
   }
 }
