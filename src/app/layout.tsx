@@ -21,6 +21,7 @@ export default function RootLayout({
             <nav className="glass-panel" style={{ padding: '8px 16px', marginBottom: '32px' }}>
               <Link href="/">Overview</Link>
               <Link href="/targets">Watchlist</Link>
+              <Link href="/subscribers">Subscribers</Link>
               <Link href="/settings">Settings</Link>
             </nav>
           </header>
