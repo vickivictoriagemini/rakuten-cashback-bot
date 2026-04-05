@@ -26,49 +26,51 @@ export async function runScraper() {
     // Set a normal user agent
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36')
     
-    // Go to Rakuten US and wait until the React app is fully hydrated
-    await page.goto('https://www.rakuten.com/stores/all/index.htm', { waitUntil: 'networkidle2', timeout: 60000 })
+    let extractedOffers: any[] = []
     
-    // Execute script in browser to extract the hydrated store data
-    const extractedOffers = await page.evaluate(() => {
-      const offersMap = new Map<string, any>()
+    try {
+      // Go to Rakuten US
+      // Changed to 'domcontentloaded' because datacenters (like Render) take too long 
+      // or get blocked by bot protection, preventing networkidle2 from ever firing.
+      await page.goto('https://www.rakuten.com/stores/all/index.htm', { waitUntil: 'domcontentloaded', timeout: 30000 })
       
-      const elements = document.querySelectorAll('a')
-      elements.forEach(el => {
-        const text = el.innerText.trim().replace(/\s+/g, ' ')
-        const href = el.getAttribute('href')
-        
-        const match = text.match(/(?:Up\s+to\s+)?([\d\.]+)\%\s*Cash\s*Back/i)
-        if (match && href) {
-          let storeName = 'Unknown Store'
+      // Execute script in browser to extract the hydrated store data
+      extractedOffers = await page.evaluate(() => {
+        const offersMap = new Map<string, any>()
+        const elements = document.querySelectorAll('a')
+        elements.forEach(el => {
+          const text = el.innerText.trim().replace(/\s+/g, ' ')
+          const href = el.getAttribute('href')
           
-          const urlParts = href.split('?')
-          const pathParts = urlParts[0].split('/').filter(Boolean)
-          
-          if (pathParts.length > 0) {
-             let rawName = pathParts[pathParts.length - 1].split('?')[0]
-             rawName = rawName.replace(/_[a-zA-Z0-9]+/g, '').replace(/-[a-zA-Z0-9]+/g, '')
-             storeName = rawName.replace(/-/g, ' ')
-             storeName = storeName.replace(/\b\w/g, l => l.toUpperCase())
-          }
-          
-          const rate = parseFloat(match[1])
-          const fullUrl = href.startsWith('http') ? href : `https://www.rakuten.com${href.startsWith('/') ? href : '/' + href}`
-          
-          if (storeName.toLowerCase() !== 'rakuten' && rate > 0) {
-            if (!offersMap.has(storeName) || offersMap.get(storeName).rate < rate) {
-              offersMap.set(storeName, {
-                storeName,
-                cashback: match[0],
-                rate,
-                url: fullUrl
-              })
+          const match = text.match(/(?:Up\s+to\s+)?([\d\.]+)\%\s*Cash\s*Back/i)
+          if (match && href) {
+            let storeName = 'Unknown Store'
+            const urlParts = href.split('?')
+            const pathParts = urlParts[0].split('/').filter(Boolean)
+            
+            if (pathParts.length > 0) {
+               let rawName = pathParts[pathParts.length - 1].split('?')[0]
+               rawName = rawName.replace(/_[a-zA-Z0-9]+/g, '').replace(/-[a-zA-Z0-9]+/g, '')
+               storeName = rawName.replace(/-/g, ' ')
+               storeName = storeName.replace(/\b\w/g, l => l.toUpperCase())
+            }
+            
+            const rate = parseFloat(match[1])
+            const fullUrl = href.startsWith('http') ? href : `https://www.rakuten.com${href.startsWith('/') ? href : '/' + href}`
+            
+            if (storeName.toLowerCase() !== 'rakuten' && rate > 0) {
+              if (!offersMap.has(storeName) || offersMap.get(storeName).rate < rate) {
+                offersMap.set(storeName, { storeName, cashback: match[0], rate, url: fullUrl })
+              }
             }
           }
-        }
+        })
+        return Array.from(offersMap.values())
       })
-      return Array.from(offersMap.values())
-    })
+    } catch (scrapeErr) {
+      console.log('Rakuten blocked this connection (Cloudflare / Timeout). Gracefully falling back to mock data.')
+      extractedOffers = [] // Forces fallback
+    }
 
     await browser.close()
     
