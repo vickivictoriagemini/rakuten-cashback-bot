@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: rakuten-bot
+    env: docker
+    region: singapore # Adjust if needed
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Requires manual entry in dashboard for security
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false # Requires manual entry in dashboard for security
