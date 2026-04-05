@@ -9,7 +9,10 @@ export async function GET() {
     
     const userTargets = await prisma.focusTarget.findMany({
       where: {
-        chatId: { not: null, not: '' }
+        NOT: [
+          { chatId: null },
+          { chatId: '' }
+        ]
       }
     })
 
