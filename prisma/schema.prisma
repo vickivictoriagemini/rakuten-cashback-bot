@@ -47,5 +47,6 @@ model StoreOffer {
   cashback  String   // e.g., "10.0% Cash Back"
   rate      Float    // e.g., 10.0
   url       String
+  source    String   @default("rakuten") // "rakuten" | "capital_one_shopping"
   date      DateTime @default(now())
 }

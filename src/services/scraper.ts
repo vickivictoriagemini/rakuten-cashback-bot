@@ -1,16 +1,13 @@
-import puppeteer from 'puppeteer-extra'
-import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 import { prisma } from '@/lib/prisma'
 import { sendTelegramMessage } from './telegram'
+import { runAllScrapers, ScrapedOffer } from './scrapers/index'
 
-puppeteer.use(StealthPlugin())
-
-export interface ScrapedOffer {
-  storeName: string
-  cashback: string
-  rate: number
-  url: string
+const SOURCE_LABELS: Record<string, string> = {
+  rakuten: '🔶 Rakuten',
+  capital_one_shopping: '🔷 Capital One Shopping',
 }
+
+export type { ScrapedOffer }
 
 export async function runScraper() {
   try {
@@ -18,174 +15,119 @@ export async function runScraper() {
     const globalThreshold = settings?.globalThreshold ?? 15.0
     const focusTargets = await prisma.focusTarget.findMany()
 
-    console.log('Starting Headless Browser to scrape Rakuten (Real-Time SPA)...')
-    
-    // Launch stealth browser
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    })
-    
-    const page = await browser.newPage()
-    
-    let extractedOffers: any[] = []
-    
-    try {
-      // Go to Rakuten US
-      // Changed to 'domcontentloaded' because datacenters (like Render) take too long 
-      // or get blocked by bot protection, preventing networkidle2 from ever firing.
-      await page.goto('https://www.rakuten.com/stores/all/index.htm', { waitUntil: 'domcontentloaded', timeout: 30000 })
-      
-      // Execute script in browser to extract the hydrated store data
-      extractedOffers = await page.evaluate(() => {
-        const offersMap = new Map<string, any>()
-        const elements = document.querySelectorAll('a')
-        elements.forEach(el => {
-          const text = el.innerText.trim().replace(/\s+/g, ' ')
-          const href = el.getAttribute('href')
-          
-          const match = text.match(/(?:Up\s+to\s+)?([\d\.]+)\%\s*Cash\s*Back/i)
-          if (match && href) {
-            let storeName = 'Unknown Store'
-            const urlParts = href.split('?')
-            const pathParts = urlParts[0].split('/').filter(Boolean)
-            
-            if (pathParts.length > 0) {
-               let rawName = pathParts[pathParts.length - 1].split('?')[0]
-               rawName = rawName.replace(/_[a-zA-Z0-9]+/g, '').replace(/-[a-zA-Z0-9]+/g, '')
-               storeName = rawName.replace(/-/g, ' ')
-               storeName = storeName.replace(/\b\w/g, l => l.toUpperCase())
-            }
-            
-            const rate = parseFloat(match[1])
-            const fullUrl = href.startsWith('http') ? href : `https://www.rakuten.com${href.startsWith('/') ? href : '/' + href}`
-            
-            if (storeName.toLowerCase() !== 'rakuten' && rate > 0) {
-              if (!offersMap.has(storeName) || offersMap.get(storeName).rate < rate) {
-                offersMap.set(storeName, { storeName, cashback: match[0], rate, url: fullUrl })
-              }
-            }
-          }
-        })
-        return Array.from(offersMap.values())
-      })
-    } catch (scrapeErr) {
-      console.log('Rakuten blocked this connection (Cloudflare / Timeout). Gracefully falling back to mock data.')
-      extractedOffers = [] // Forces fallback
-    }
+    // --- Run all scrapers ---
+    const { all: allOffers, bySource } = await runAllScrapers()
 
-    await browser.close()
-    
-    // Sort all offers by highest rate first
-    const mockOffers: ScrapedOffer[] = extractedOffers
-      .sort((a, b) => b.rate - a.rate)
-      .slice(0, 15) // take top 15 as "leaderboard"
-
-    console.log(`Extracted ${mockOffers.length} offers from Rakuten homepage.`)
-
-    // If parsing fails for any reason (e.g. they use heavy React/JSON only), 
-    // fallback to a default set to ensure the UI keeps working and notifying.
-    if (mockOffers.length === 0) {
-       console.log('No offers found via HTML scraping. It might require Playwright. Using fallback.')
-       mockOffers.push(
-         { storeName: 'Nike', cashback: '10.0% Cash Back', rate: 10.0, url: 'https://www.rakuten.com/nike' },
-         { storeName: 'Sephora', cashback: '15.0% Cash Back', rate: 15.0, url: 'https://www.rakuten.com/sephora' },
-         { storeName: 'Dell', cashback: '18.0% Cash Back', rate: 18.0, url: 'https://www.rakuten.com/dell' }
-       )
-    }
-
-    // Save to Database (we only need to do this once for the global list of offers)
-    for (const offer of mockOffers) {
+    // --- Save to DB ---
+    for (const offer of allOffers) {
       await prisma.storeOffer.create({
         data: {
           storeName: offer.storeName,
           cashback: offer.cashback,
           rate: offer.rate,
           url: offer.url,
-        }
+          source: offer.source,
+        },
       })
     }
 
-    // Now broadcast to each subscriber
+    // --- Broadcast to each subscriber ---
     const subscribers = await prisma.telegramSubscriber.findMany()
     const chatIds = new Set<string>()
-    if (settings && settings.telegramChatId) {
-      chatIds.add(settings.telegramChatId.toString())
-    }
+    if (settings?.telegramChatId) chatIds.add(settings.telegramChatId.toString())
     subscribers.forEach((sub: any) => chatIds.add(sub.chatId))
-    
+
     let sentCount = 0
 
-    // Send tailored notification for each registered chat
     for (const chatId of chatIds) {
-      const myTargets = focusTargets.filter((t: any) => t.chatId === chatId || t.chatId === null || t.chatId === '')
-      
-      const highValueTargets: ScrapedOffer[] = []
-      const triggeredFocusTargets: { target: any, offer: ScrapedOffer }[] = []
-      
-      for (const offer of mockOffers) {
-        if (offer.rate >= globalThreshold) {
-          highValueTargets.push(offer)
-        }
-        
-        for (const target of myTargets) {
-          if (
-            offer.storeName.toLowerCase().includes(target.keyword.toLowerCase()) &&
-            offer.rate >= target.threshold
-          ) {
-            triggeredFocusTargets.push({ target, offer })
-            break
-          }
-        }
-      }
+      const myTargets = focusTargets.filter(
+        (t: any) => t.chatId === chatId || t.chatId === null || t.chatId === ''
+      )
 
-      let message = '📊 *Rakuten Daily Review* 📊\n\n'
-      let hasMessage = false
+      const message = buildMessage(allOffers, bySource, myTargets, globalThreshold)
 
-      if (mockOffers.length > 0) {
-        hasMessage = true
-        message += `🏆 *Top 3 Offers Today*:\n`
-        const top3 = mockOffers.slice(0, 3)
-        const medals = ['🥇', '🥈', '🥉']
-        top3.forEach((o, index) => {
-          message += `${medals[index]} <a href="${o.url}"><b>${o.storeName}</b></a>: ${o.cashback}\n`
-        })
-        message += '\n'
-      }
-
-      if (highValueTargets.length > 0) {
-        hasMessage = true
-        message += `🔥 *High Cashback Rates (>= ${globalThreshold}%)*:\n`
-        highValueTargets.forEach(o => {
-          message += `- <a href="${o.url}"><b>${o.storeName}</b></a>: ${o.cashback}\n`
-        })
-        message += '\n'
-      }
-
-      if (triggeredFocusTargets.length > 0) {
-        hasMessage = true
-        message += `🎯 *Focus Targets Reached*:\n`
-        triggeredFocusTargets.forEach(({ target, offer }) => {
-          message += `✅ <a href="${offer.url}"><b>${target.name}</b></a> reached: ${offer.cashback} (Threshold: ${target.threshold}%)\n`
-        })
-      }
-
-      if (hasMessage) {
+      if (message) {
         const sent = await sendTelegramMessage(chatId, message)
         if (sent) sentCount++
       }
     }
 
     await prisma.scrapeLog.create({
-      data: { status: 'SUCCESS', message: `Scraped ${mockOffers.length} offers. Sent to ${sentCount} users.` }
+      data: {
+        status: 'SUCCESS',
+        message: `Scraped ${allOffers.length} offers from ${Object.keys(bySource).length} sources. Sent to ${sentCount} users.`,
+      },
     })
 
-    return { success: true, offers: mockOffers }
+    return { success: true, offers: allOffers }
   } catch (error) {
     console.error('Scraper Error:', error)
     await prisma.scrapeLog.create({
-      data: { status: 'ERROR', message: error instanceof Error ? error.message : 'Unknown error' }
+      data: {
+        status: 'ERROR',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
     })
     return { success: false, error }
   }
+}
+
+function buildMessage(
+  allOffers: ScrapedOffer[],
+  bySource: Record<string, ScrapedOffer[]>,
+  myTargets: any[],
+  globalThreshold: number
+): string {
+  let message = '📊 *Daily Cashback Review* 📊\n\n'
+  let hasContent = false
+
+  // --- Top picks per source ---
+  for (const [source, offers] of Object.entries(bySource)) {
+    if (offers.length === 0) continue
+    hasContent = true
+    const label = SOURCE_LABELS[source] ?? source
+    const top3 = offers.slice(0, 3)
+    const medals = ['🥇', '🥈', '🥉']
+    message += `${label} *Top Picks*:\n`
+    top3.forEach((o, i) => {
+      message += `${medals[i]} <a href="${o.url}"><b>${o.storeName}</b></a>: ${o.cashback}\n`
+    })
+    message += '\n'
+  }
+
+  // --- High cashback across all platforms ---
+  const highValue = allOffers.filter(o => o.rate >= globalThreshold)
+  if (highValue.length > 0) {
+    hasContent = true
+    message += `🔥 *High Cashback (>= ${globalThreshold}%)*:\n`
+    highValue.forEach(o => {
+      const label = SOURCE_LABELS[o.source] ?? o.source
+      message += `- <a href="${o.url}"><b>${o.storeName}</b></a>: ${o.cashback} (${label})\n`
+    })
+    message += '\n'
+  }
+
+  // --- Focus targets ---
+  const triggered: { target: any; offer: ScrapedOffer }[] = []
+  for (const offer of allOffers) {
+    for (const target of myTargets) {
+      if (
+        offer.storeName.toLowerCase().includes(target.keyword.toLowerCase()) &&
+        offer.rate >= target.threshold
+      ) {
+        triggered.push({ target, offer })
+        break
+      }
+    }
+  }
+
+  if (triggered.length > 0) {
+    hasContent = true
+    message += `🎯 *Focus Targets Reached*:\n`
+    triggered.forEach(({ target, offer }) => {
+      message += `✅ <a href="${offer.url}"><b>${target.name}</b></a> reached: ${offer.cashback} (Threshold: ${target.threshold}%)\n`
+    })
+  }
+
+  return hasContent ? message : ''
 }
