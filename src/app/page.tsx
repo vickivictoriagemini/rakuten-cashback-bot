@@ -60,6 +60,7 @@ export default async function DashboardPage() {
             <thead>
               <tr>
                 <th>Store</th>
+                <th>Platform</th>
                 <th>Cashback Rate</th>
                 <th>Time Scraped</th>
                 <th>Action</th>
@@ -69,6 +70,17 @@ export default async function DashboardPage() {
               {recentOffers.map((offer) => (
                 <tr key={offer.id}>
                   <td style={{ fontWeight: 600 }}>{offer.storeName}</td>
+                  <td>
+                    {offer.source === 'capital_one_shopping' ? (
+                      <span style={{ fontSize: '0.8rem', padding: '4px 8px', borderRadius: '12px', background: 'rgba(29, 78, 216, 0.2)', color: '#60a5fa', border: '1px solid rgba(29, 78, 216, 0.4)' }}>
+                        Capital One
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.8rem', padding: '4px 8px', borderRadius: '12px', background: 'rgba(153, 27, 27, 0.2)', color: '#f87171', border: '1px solid rgba(153, 27, 27, 0.4)' }}>
+                        Rakuten
+                      </span>
+                    )}
+                  </td>
                   <td className="text-success">{offer.cashback}</td>
                   <td className="text-secondary">{formatDistanceToNow(new Date(offer.date), { addSuffix: true })}</td>
                   <td>
