@@ -6,13 +6,17 @@ interface Settings {
   telegramToken: string
   telegramChatId: string
   globalThreshold: number
+  scheduleTime: string
+  scheduleEnabled: boolean
 }
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
     telegramToken: '',
     telegramChatId: '',
-    globalThreshold: 15.0
+    globalThreshold: 15.0,
+    scheduleTime: '09:00',
+    scheduleEnabled: true,
   })
   const [statusText, setStatusText] = useState('')
   const [loading, setLoading] = useState(true)
@@ -104,7 +108,52 @@ export default function SettingsPage() {
               required 
             />
           </div>
-          
+
+          {/* ── Schedule Settings ── */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '12px', fontWeight: 600 }}>
+              Daily Auto-Scrape Schedule
+            </label>
+
+            {/* Enable / Disable toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.scheduleEnabled}
+                  onChange={e => setSettings({ ...settings, scheduleEnabled: e.target.checked })}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span style={{
+                  position: 'absolute', inset: 0, borderRadius: '24px', cursor: 'pointer',
+                  background: settings.scheduleEnabled ? 'var(--accent, #7c3aed)' : 'rgba(255,255,255,0.2)',
+                  transition: 'background 0.2s',
+                }} />
+                <span style={{
+                  position: 'absolute', top: '3px',
+                  left: settings.scheduleEnabled ? '23px' : '3px',
+                  width: '18px', height: '18px', borderRadius: '50%',
+                  background: '#fff', transition: 'left 0.2s',
+                }} />
+              </label>
+              <span className="text-secondary" style={{ fontSize: '0.9rem' }}>
+                {settings.scheduleEnabled ? 'Schedule enabled' : 'Schedule disabled'}
+              </span>
+            </div>
+
+            {/* Time picker */}
+            <div className="input-group" style={{ opacity: settings.scheduleEnabled ? 1 : 0.4 }}>
+              <label>Trigger Time (Asia/Tokyo timezone, UTC+9)</label>
+              <input
+                type="time"
+                value={settings.scheduleTime}
+                disabled={!settings.scheduleEnabled}
+                onChange={e => setSettings({ ...settings, scheduleTime: e.target.value })}
+                style={{ maxWidth: '160px' }}
+              />
+            </div>
+          </div>
+
           <button type="submit" className="btn" disabled={saving}>
             {saving ? 'Saving...' : 'Save Configuration'}
           </button>
