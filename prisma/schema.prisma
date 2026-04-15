@@ -51,4 +51,6 @@ model StoreOffer {
   url       String
   source    String   @default("rakuten") // "rakuten" | "capital_one_shopping"
   date      DateTime @default(now())
+
+  @@unique([storeName, source])
 }

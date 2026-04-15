@@ -18,10 +18,22 @@ export async function runScraper() {
     // --- Run all scrapers ---
     const { all: allOffers, bySource } = await runAllScrapers()
 
-    // --- Save to DB ---
+    // --- Save to DB (upsert: update if store already exists, insert if new) ---
     for (const offer of allOffers) {
-      await prisma.storeOffer.create({
-        data: {
+      await prisma.storeOffer.upsert({
+        where: {
+          storeName_source: {
+            storeName: offer.storeName,
+            source: offer.source,
+          },
+        },
+        update: {
+          cashback: offer.cashback,
+          rate: offer.rate,
+          url: offer.url,
+          date: new Date(), // refresh timestamp on each scrape
+        },
+        create: {
           storeName: offer.storeName,
           cashback: offer.cashback,
           rate: offer.rate,
