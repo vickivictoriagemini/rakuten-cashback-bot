@@ -46,11 +46,21 @@ model TelegramSubscriber {
 model StoreOffer {
   id        Int      @id @default(autoincrement())
   storeName String
-  cashback  String   // e.g., "10.0% Cash Back"
-  rate      Float    // e.g., 10.0
+  cashback  String
+  rate      Float
   url       String
-  source    String   @default("rakuten") // "rakuten" | "capital_one_shopping"
+  source    String   @default("rakuten")
+  category  String   @default("General")
   date      DateTime @default(now())
 
   @@unique([storeName, source])
+}
+
+model CategoryRule {
+  id        Int      @id @default(autoincrement())
+  keyword   String   @unique  // case-insensitive match against storeName
+  category  String   // e.g. "Fashion"
+  emoji     String   @default("🛒")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

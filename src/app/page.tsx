@@ -60,6 +60,7 @@ export default async function DashboardPage() {
             <thead>
               <tr>
                 <th>Store</th>
+                <th>Category</th>
                 <th>Platform</th>
                 <th>Cashback Rate</th>
                 <th>Time Scraped</th>
@@ -70,6 +71,11 @@ export default async function DashboardPage() {
               {recentOffers.map((offer) => (
                 <tr key={offer.id}>
                   <td style={{ fontWeight: 600 }}>{offer.storeName}</td>
+                  <td>
+                    <span style={{ fontSize: '0.8rem', padding: '4px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                      {(offer as any).category ?? 'General'}
+                    </span>
+                  </td>
                   <td>
                     {offer.source === 'capital_one_shopping' ? (
                       <span style={{ fontSize: '0.8rem', padding: '4px 8px', borderRadius: '12px', background: 'rgba(29, 78, 216, 0.2)', color: '#60a5fa', border: '1px solid rgba(29, 78, 216, 0.4)' }}>

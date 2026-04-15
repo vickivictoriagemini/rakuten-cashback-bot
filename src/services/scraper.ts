@@ -18,8 +18,19 @@ export async function runScraper() {
     // --- Run all scrapers ---
     const { all: allOffers, bySource } = await runAllScrapers()
 
+    // --- Load category rules from DB ---
+    const categoryRules = await prisma.categoryRule.findMany()
+    const assignCategory = (storeName: string): string => {
+      const lower = storeName.toLowerCase()
+      for (const rule of categoryRules) {
+        if (lower.includes(rule.keyword.toLowerCase())) return rule.category
+      }
+      return 'General'
+    }
+
     // --- Save to DB (upsert: update if store already exists, insert if new) ---
     for (const offer of allOffers) {
+      const category = assignCategory(offer.storeName)
       await prisma.storeOffer.upsert({
         where: {
           storeName_source: {
@@ -31,7 +42,8 @@ export async function runScraper() {
           cashback: offer.cashback,
           rate: offer.rate,
           url: offer.url,
-          date: new Date(), // refresh timestamp on each scrape
+          category,
+          date: new Date(),
         },
         create: {
           storeName: offer.storeName,
@@ -39,6 +51,7 @@ export async function runScraper() {
           rate: offer.rate,
           url: offer.url,
           source: offer.source,
+          category,
         },
       })
     }
