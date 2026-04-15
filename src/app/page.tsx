@@ -10,8 +10,8 @@ export default async function DashboardPage() {
   })
   
   const recentOffers = await prisma.storeOffer.findMany({
-    orderBy: { date: 'desc' },
-    take: 10
+    orderBy: { rate: 'desc' },
+    take: 50
   })
 
   // To count triggers per day, mock dashboard stats
