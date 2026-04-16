@@ -64,3 +64,27 @@ model CategoryRule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ── Shopee Price Monitor ──────────────────────────────
+model ShopeeTarget {
+  id          Int      @id @default(autoincrement())
+  name        String   // User-friendly label e.g. "AirPods Pro"
+  url         String   @unique
+  targetPrice Float    // Alert when price drops to or below this
+  currency    String   @default("TWD")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  history     ShopeePriceHistory[]
+}
+
+model ShopeePriceHistory {
+  id            Int          @id @default(autoincrement())
+  targetId      Int
+  target        ShopeeTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  price         Float
+  originalPrice Float?
+  discount      String?      // e.g. "85折" or "15% OFF"
+  inStock       Boolean      @default(true)
+  scrapedAt     DateTime     @default(now())
+}
