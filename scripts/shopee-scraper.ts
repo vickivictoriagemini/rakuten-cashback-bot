@@ -49,10 +49,15 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
   const page = await browser.newPage()
 
   let apiData: any = null
+  const capturedUrls: string[] = []
 
   // Intercept the Shopee API response before it reaches the page
   page.on('response', async (response: any) => {
     const responseUrl = response.url()
+    // Log all Shopee API calls for debugging
+    if (responseUrl.includes('/api/')) {
+      capturedUrls.push(`${response.status()} ${responseUrl.split('?')[0]}`)
+    }
     if (responseUrl.includes('/api/v4/item/get') && response.ok()) {
       try {
         const json = await response.json()
@@ -71,10 +76,15 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
 
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 })
 
+    const finalUrl = page.url()
+    console.log(`  Final URL: ${finalUrl}`)
+
     // Give extra time for the API call to complete if networkidle2 wasn't enough
     if (!apiData) await sleep(5000)
 
     if (!apiData) {
+      console.log(`  Intercepted API calls (${capturedUrls.length}):`)
+      capturedUrls.slice(0, 10).forEach(u => console.log(`    ${u}`))
       console.log('  ⚠️  API data not captured. Page may have redirected to login.')
       return { price: null, originalPrice: null, discount: null, inStock: false }
     }
