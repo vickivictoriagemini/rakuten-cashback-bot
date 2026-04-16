@@ -150,6 +150,9 @@ async function main() {
 
   const browser = await puppeteer.launch({
     headless: true,
+    // On ARM64 (Raspberry Pi), set PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    // Puppeteer's bundled Chrome is x86_64 only and won't run on ARM.
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
