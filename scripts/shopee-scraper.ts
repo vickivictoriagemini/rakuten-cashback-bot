@@ -58,11 +58,17 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     if (responseUrl.includes('/api/')) {
       capturedUrls.push(`${response.status()} ${responseUrl.split('?')[0]}`)
     }
-    if (responseUrl.includes('/api/v4/item/get') && response.ok()) {
+    if ((responseUrl.includes('/api/v4/item/get') || responseUrl.includes('/api/v4/pdp/get_pc')) && response.ok()) {
       try {
         const json = await response.json()
+        
+        // Handle new /api/v4/pdp/get_pc structure
         if (json?.data?.item) {
           apiData = json.data.item
+        } else if (json?.data?.item_info) {
+          apiData = json.data.item_info
+        } else if (json?.item) {
+          apiData = json.item
         }
       } catch {
         // ignore parse errors
