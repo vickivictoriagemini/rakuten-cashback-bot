@@ -74,6 +74,21 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     await page.setViewport({ width: 1280, height: 800 })
     await page.setExtraHTTPHeaders({ 'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8' })
 
+    // Inject Shopee cookies if provided in .env
+    const cookieString = process.env.SHOPEE_COOKIES || ''
+    if (cookieString) {
+      const cookies = cookieString.split(';').map(pair => {
+        const [name, ...rest] = pair.trim().split('=')
+        return {
+          name: name.trim(),
+          value: rest.join('=').trim(),
+          domain: '.shopee.tw',
+        }
+      }).filter(c => c.name && c.value)
+      
+      await page.setCookie(...cookies)
+    }
+
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 })
 
     const finalUrl = page.url()
