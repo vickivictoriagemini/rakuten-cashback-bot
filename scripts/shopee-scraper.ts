@@ -94,8 +94,30 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     const finalUrl = page.url()
     console.log(`  Final URL: ${finalUrl}`)
 
-    // Give extra time for the API call to complete if networkidle2 wasn't enough
-    if (!apiData) await sleep(5000)
+    // ─── Simulate Human Interaction ───
+    // Bot prevention looks for people who open a page and immediately leave or never move the mouse.
+    
+    // 1. Move mouse randomly across the screen
+    for (let i = 0; i < 3; i++) {
+      const x = Math.floor(Math.random() * 1000) + 100
+      const y = Math.floor(Math.random() * 600) + 100
+      await page.mouse.move(x, y, { steps: 10 + Math.floor(Math.random() * 20) })
+      await sleep(300 + Math.random() * 500)
+    }
+
+    // 2. Scroll down slowly (real users scroll to see reviews/description)
+    await page.evaluate(() => {
+      window.scrollBy({ top: Math.floor(Math.random() * 500) + 300, behavior: 'smooth' })
+    })
+    await sleep(1500 + Math.random() * 1000)
+
+    // 3. Scroll back up a bit
+    await page.evaluate(() => {
+      window.scrollBy({ top: -Math.floor(Math.random() * 200), behavior: 'smooth' })
+    })
+    
+    // Give extra time for the API call to complete if it was slow
+    if (!apiData) await sleep(5000 + Math.random() * 3000)
 
     if (!apiData) {
       console.log(`  Intercepted API calls (${capturedUrls.length}):`)
@@ -185,10 +207,10 @@ async function main() {
           await sendTelegram(adminChatId, msg)
         }
 
-        await sleep(5000 + Math.random() * 3000)
+        await sleep(10000 + Math.random() * 15000)
       } catch (err: any) {
         console.error(`  ❌ Error: ${err.message}`)
-        await sleep(5000)
+        await sleep(15000)
       }
     }
   } finally {
