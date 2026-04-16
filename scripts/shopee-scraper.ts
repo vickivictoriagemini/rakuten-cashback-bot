@@ -64,61 +64,54 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     await sleep(2000)
 
     const result = await page.evaluate(() => {
-      // ── Price selectors (Shopee TW / may need adjustment if Shopee changes layout) ──
-      const priceSelectors = [
+      const toPrice = (el: Element | null): number | null => {
+        if (!el) return null
+        const t = el.textContent?.replace(/[^\d.]/g, '') ?? ''
+        const n = parseFloat(t)
+        return isNaN(n) ? null : n
+      }
+
+      const q = (selectors: string[]): Element | null => {
+        for (const s of selectors) {
+          const el = document.querySelector(s)
+          if (el) return el
+        }
+        return null
+      }
+
+      const priceEl = q([
         '[class*="pricePaid"]',
         '[class*="price-current"]',
         '[class*="current-price"]',
         '[class*="product-price"]',
         '[data-squid-id*="price"]',
-      ]
+        '[class*="sDq_FX"]',   // common Shopee TW class
+        '[class*="Z6WM8h"]',
+      ])
 
-      const originalSelectors = [
+      const origEl = q([
         '[class*="priceOriginal"]',
         '[class*="price-before-discount"]',
         '[class*="price-org"]',
-      ]
+        '[class*="YKiqKD"]',
+      ])
 
-      const discountSelectors = [
-        '[class*="discount"]',
+      const discountEl = q([
         '[class*="discountTag"]',
+        '[class*="discount"]',
         '[class*="off-tag"]',
-      ]
+        '[class*="RvFDLR"]',
+      ])
 
-      function extractPrice(el: Element | null): number | null {
-        if (!el) return null
-        const text = el.textContent?.replace(/[^\d.]/g, '') ?? ''
-        const num = parseFloat(text)
-        return isNaN(num) ? null : num
-      }
-
-      let priceEl: Element | null = null
-      for (const sel of priceSelectors) {
-        priceEl = document.querySelector(sel)
-        if (priceEl) break
-      }
-
-      let originalEl: Element | null = null
-      for (const sel of originalSelectors) {
-        originalEl = document.querySelector(sel)
-        if (originalEl) break
-      }
-
-      let discountEl: Element | null = null
-      for (const sel of discountSelectors) {
-        discountEl = document.querySelector(sel)
-        if (discountEl) break
-      }
-
-      // Detect if out of stock
-      const pageText = document.body.textContent?.toLowerCase() ?? ''
-      const inStock = !pageText.includes('已售完') &&
-                      !pageText.includes('out of stock') &&
-                      !pageText.includes('售完')
+      const bodyText = document.body.textContent?.toLowerCase() ?? ''
+      const inStock = !bodyText.includes('已售完') &&
+                      !bodyText.includes('out of stock') &&
+                      !bodyText.includes('售完') &&
+                      !bodyText.includes('缺貨')
 
       return {
-        price: extractPrice(priceEl),
-        originalPrice: extractPrice(originalEl),
+        price: toPrice(priceEl),
+        originalPrice: toPrice(origEl),
         discount: discountEl?.textContent?.trim() ?? null,
         inStock,
       }
