@@ -97,7 +97,7 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
       await page.setCookie(...cookies)
     }
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 })
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 })
 
     const finalUrl = page.url()
     console.log(`  Final URL: ${finalUrl}`)
