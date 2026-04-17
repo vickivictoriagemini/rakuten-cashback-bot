@@ -21,6 +21,7 @@ interface ShopeeTarget {
   active: boolean
   createdAt: string
   history: PriceHistory[]
+  imageUrl: string | null
 }
 
 function PriceBadge({ current, target }: { current: number | null; target: number }) {
@@ -172,6 +173,11 @@ export default function ShopeePage() {
                 }}>
                   {/* Main row */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', flexWrap: 'wrap' }}>
+                    {target.imageUrl && (
+                      <div style={{ flexShrink: 0, width: '60px', height: '60px', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
+                        <img src={target.imageUrl} alt={target.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      </div>
+                    )}
                     <div style={{ flex: 1, minWidth: '200px' }}>
                       <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>
                         {target.name}

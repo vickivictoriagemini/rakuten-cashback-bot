@@ -38,6 +38,7 @@ interface ScrapedProduct {
   originalPrice: number | null
   discount: string | null
   inStock: boolean
+  imageUrl: string | null
 }
 
 /**
@@ -129,7 +130,7 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
       console.log(`  Intercepted API calls (${capturedUrls.length}):`)
       capturedUrls.slice(0, 10).forEach(u => console.log(`    ${u}`))
       console.log('  ⚠️  API data not captured. Page may have redirected to login.')
-      return { price: null, originalPrice: null, discount: null, inStock: false }
+      return { price: null, originalPrice: null, discount: null, inStock: false, imageUrl: null }
     }
 
     // Shopee stores price in smallest unit (÷100000 = TWD)
@@ -142,8 +143,11 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
       : null
     const discount = apiData.discount ? `${apiData.discount}% OFF` : null
     const inStock  = (apiData.stock ?? 0) > 0 || apiData.item_status === 'normal'
+    
+    // Construct full CDN URL for the product image
+    const imageUrl = apiData.image ? `https://down-tw.img.susercontent.com/file/${apiData.image}` : null
 
-    return { price, originalPrice, discount, inStock }
+    return { price, originalPrice, discount, inStock, imageUrl }
   } finally {
     await page.close()
   }
@@ -184,6 +188,13 @@ async function main() {
           console.log('  ⚠️  No price captured. Skipping.')
           await sleep(5000)
           continue
+        // Update Target with latest image URL if available
+        if (data.imageUrl && target.imageUrl !== data.imageUrl) {
+          await prisma.shopeeTarget.update({
+            where: { id: target.id },
+            data: { imageUrl: data.imageUrl }
+          })
+          console.log('  📸 Image URL updated in database.')
         }
 
         await prisma.shopeePriceHistory.create({
