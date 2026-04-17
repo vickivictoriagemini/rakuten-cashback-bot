@@ -148,10 +148,10 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     // Construct full CDN URL for the product image
     const imageUrl = apiData.image ? `https://down-tw.img.susercontent.com/file/${apiData.image}` : null
 
-    // 📸 Take screenshot exactly 1.5s after interacting (sweet spot to beat anti-bot) 📸
+    // 📸 Take screenshot exactly 0.5s after interacting (sweet spot to beat anti-bot) 📸
     let screenshot = null
     if (price !== null) {
-      await sleep(1500)
+      await sleep(500)
       try {
         const b64 = await page.screenshot({ type: 'jpeg', quality: 60, encoding: 'base64' })
         screenshot = `data:image/jpeg;base64,${b64}`
