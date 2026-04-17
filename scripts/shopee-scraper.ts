@@ -102,19 +102,23 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     const finalUrl = page.url()
     console.log(`  Final URL: ${finalUrl}`)
 
-    // 📸 Wait precisely for React to populate text in the DOM, which guarantees the price is visible, then SNAP immediately 📸
+    // 📸 Ultimate Burst Mode: Take 8 screenshots over 4 seconds. Keep the largest one (most content).
+    // This perfectly defeats both slow-renders (we keep shooting) and anti-bot whitescreens (we discard the small white images).
     let screenshot = null
     try {
-      // Shopee skeletons have very little text. A fully loaded product page has > 1000 characters of text.
-      await page.waitForFunction(() => document.body && document.body.innerText.length > 300, { timeout: 8000 })
-      
-      // Give it just 200ms to let any trailing image render
-      await sleep(200)
-      
-      const b64 = await page.screenshot({ type: 'jpeg', quality: 50, encoding: 'base64' })
-      screenshot = `data:image/jpeg;base64,${b64}`
+      let bestB64 = ''
+      for (let s = 0; s < 8; s++) {
+        const b64 = await page.screenshot({ type: 'jpeg', quality: 50, encoding: 'base64' })
+        if (b64 && b64.length > bestB64.length) {
+          bestB64 = b64
+        }
+        await sleep(500) // Snap every 0.5s
+      }
+      if (bestB64) {
+        screenshot = `data:image/jpeg;base64,${bestB64}`
+      }
     } catch {
-      // Ignore if taking screenshot fails
+      // Ignore
     }
 
     // ─── Simulate Human Interaction ───
