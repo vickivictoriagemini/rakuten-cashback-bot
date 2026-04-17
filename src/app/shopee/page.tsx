@@ -47,6 +47,7 @@ export default function ShopeePage() {
   const [status, setStatus] = useState('')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [history, setHistory] = useState<Record<number, PriceHistory[]>>({})
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null)
 
   const fetchTargets = async () => {
     const res = await fetch('/api/shopee/targets')
@@ -252,9 +253,12 @@ export default function ShopeePage() {
                                 </td>
                                 <td style={{ padding: '6px 0' }}>
                                   {h.screenshot ? (
-                                    <a href={h.screenshot} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline', fontSize: '0.8rem' }}>
-                                      View
-                                    </a>
+                                    <button 
+                                      onClick={() => setSelectedScreenshot(h.screenshot)}
+                                      style={{ background: 'transparent', border: '1px solid rgba(96, 165, 250, 0.4)', color: '#60a5fa', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                                    >
+                                      📸 View
+                                    </button>
                                   ) : '—'}
                                 </td>
                               </tr>
@@ -309,6 +313,24 @@ export default function ShopeePage() {
           ))}
         </div>
       </div>
+
+      {/* Screenshot Modal */}
+      {selectedScreenshot && (
+        <div 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+          onClick={() => setSelectedScreenshot(null)}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh', background: '#fff', borderRadius: '12px', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <img src={selectedScreenshot} alt="Shopee Screenshot" style={{ display: 'block', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            <button 
+              onClick={() => setSelectedScreenshot(null)}
+              style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
