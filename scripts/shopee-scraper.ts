@@ -260,6 +260,25 @@ async function main() {
         await sleep(30000)
       }
     }
+    // ─── Auto-Cleanup to save DB space ───
+    // A 150KB screenshot saved hourly for 5 items = ~18MB/day. Supabase free tier is 500MB.
+    // We keep the price history text forever, but delete the heavy image data after 7 days.
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    
+    const cleanupResult = await prisma.shopeePriceHistory.updateMany({
+      where: {
+        screenshot: { not: null },
+        scrapedAt:  { lt: sevenDaysAgo }
+      },
+      data: {
+        screenshot: null
+      }
+    })
+    if (cleanupResult.count > 0) {
+      console.log(`  🧹 Cleaned up ${cleanupResult.count} old screenshots to save database space.`)
+    }
+
   } finally {
     await browser.close()
     await prisma.$disconnect()
