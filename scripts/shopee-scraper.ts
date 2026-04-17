@@ -151,7 +151,7 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     // Take an actual screenshot of the browser viewport if price was found
     let screenshot = null
     if (price !== null) {
-      await sleep(4000) // Wait for React to finish rendering the UI before snapping
+      await sleep(1500) // Lowered wait to 1.5s to capture React render before bot-detection whites out the screen
       const b64 = await page.screenshot({ type: 'jpeg', quality: 60, encoding: 'base64' })
       screenshot = `data:image/jpeg;base64,${b64}`
     }
