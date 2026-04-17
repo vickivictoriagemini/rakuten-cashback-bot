@@ -102,14 +102,15 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     const finalUrl = page.url()
     console.log(`  Final URL: ${finalUrl}`)
 
-    // 📸 Wait exactly 1 second for React to paint, then SNAP before the 4-second scroll routine (when anti-bot usually kicks in)
+    // 📸 Wait for React to mount the main components (like images), then wait 1.5s for text to hydrate, then SNAP
     let screenshot = null
     try {
-      await sleep(1000)
+      await page.waitForSelector('img', { timeout: 5000 })
+      await sleep(1500)
       const b64 = await page.screenshot({ type: 'jpeg', quality: 60, encoding: 'base64' })
       screenshot = `data:image/jpeg;base64,${b64}`
     } catch {
-      // Ignore
+      // Ignore if taking screenshot fails
     }
 
     // ─── Simulate Human Interaction ───
