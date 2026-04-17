@@ -10,6 +10,7 @@ interface PriceHistory {
   discount: string | null
   inStock: boolean
   scrapedAt: string
+  screenshot: string | null
 }
 
 interface ShopeeTarget {
@@ -234,6 +235,7 @@ export default function ShopeePage() {
                               <th style={{ paddingBottom: '8px', fontWeight: 600 }}>Original</th>
                               <th style={{ paddingBottom: '8px', fontWeight: 600 }}>Discount</th>
                               <th style={{ paddingBottom: '8px', fontWeight: 600 }}>Stock</th>
+                              <th style={{ paddingBottom: '8px', fontWeight: 600 }}>Screenshot</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -247,6 +249,13 @@ export default function ShopeePage() {
                                 <td style={{ padding: '6px 0', color: '#fbbf24' }}>{h.discount ?? '—'}</td>
                                 <td style={{ padding: '6px 0' }}>
                                   <span style={{ color: h.inStock ? '#4ade80' : '#f87171' }}>{h.inStock ? 'In Stock' : 'Out'}</span>
+                                </td>
+                                <td style={{ padding: '6px 0' }}>
+                                  {h.screenshot ? (
+                                    <a href={h.screenshot} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline', fontSize: '0.8rem' }}>
+                                      View
+                                    </a>
+                                  ) : '—'}
                                 </td>
                               </tr>
                             ))}

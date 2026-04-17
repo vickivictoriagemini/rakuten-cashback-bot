@@ -39,6 +39,7 @@ interface ScrapedProduct {
   discount: string | null
   inStock: boolean
   imageUrl: string | null
+  screenshot: string | null
 }
 
 /**
@@ -147,7 +148,14 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     // Construct full CDN URL for the product image
     const imageUrl = apiData.image ? `https://down-tw.img.susercontent.com/file/${apiData.image}` : null
 
-    return { price, originalPrice, discount, inStock, imageUrl }
+    // Take an actual screenshot of the browser viewport if price was found
+    let screenshot = null
+    if (price !== null) {
+      const b64 = await page.screenshot({ type: 'jpeg', quality: 60, encoding: 'base64' })
+      screenshot = `data:image/jpeg;base64,${b64}`
+    }
+
+    return { price, originalPrice, discount, inStock, imageUrl, screenshot }
   } finally {
     await page.close()
   }
@@ -206,6 +214,7 @@ async function main() {
             originalPrice: data.originalPrice,
             discount:      data.discount,
             inStock:       data.inStock,
+            screenshot:    data.screenshot,
           },
         })
 

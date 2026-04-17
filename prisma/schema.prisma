@@ -88,5 +88,6 @@ model ShopeePriceHistory {
   originalPrice Float?
   discount      String?      // e.g. "85折" or "15% OFF"
   inStock       Boolean      @default(true)
+  screenshot    String?      // Base64 JPEG string
   scrapedAt     DateTime     @default(now())
 }
