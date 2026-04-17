@@ -102,13 +102,24 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     const finalUrl = page.url()
     console.log(`  Final URL: ${finalUrl}`)
 
-    // 📸 Wait for React to mount the main components (like images), then wait 1.5s for text to hydrate, then SNAP
+    // 📸 Take multiple rapid screenshots to beat the anti-bot white screen and keep the largest file (highest detail) 📸
     let screenshot = null
     try {
-      await page.waitForSelector('img', { timeout: 5000 })
-      await sleep(1500)
-      const b64 = await page.screenshot({ type: 'jpeg', quality: 60, encoding: 'base64' })
-      screenshot = `data:image/jpeg;base64,${b64}`
+      await page.waitForSelector('img', { timeout: 3000 })
+      await sleep(200)
+      
+      let bestB64 = ''
+      for (let s = 0; s < 4; s++) {
+        const b64 = await page.screenshot({ type: 'jpeg', quality: 50, encoding: 'base64' })
+        if (b64.length > bestB64.length) {
+          bestB64 = b64
+        }
+        await sleep(300)
+      }
+      
+      if (bestB64) {
+        screenshot = `data:image/jpeg;base64,${bestB64}`
+      }
     } catch {
       // Ignore if taking screenshot fails
     }
