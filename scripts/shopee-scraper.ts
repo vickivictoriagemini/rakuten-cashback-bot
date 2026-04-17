@@ -182,8 +182,9 @@ async function main() {
   const settings    = await prisma.systemSetting.findFirst()
   const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || settings?.telegramChatId || ''
 
+  const isMac = process.platform === 'darwin'
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: isMac ? false : true,
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
   })
