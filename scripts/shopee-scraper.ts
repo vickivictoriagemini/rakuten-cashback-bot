@@ -188,6 +188,8 @@ async function main() {
           console.log('  ⚠️  No price captured. Skipping.')
           await sleep(5000)
           continue
+        }
+
         // Update Target with latest image URL if available
         if (data.imageUrl && target.imageUrl !== data.imageUrl) {
           await prisma.shopeeTarget.update({
