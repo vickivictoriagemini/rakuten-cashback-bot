@@ -194,8 +194,10 @@ async function main() {
   const adminChatId = process.env.TELEGRAM_ADMIN_CHAT_ID || settings?.telegramChatId || ''
 
   const isMac = process.platform === 'darwin'
+  const forceHeadful = process.env.HEADLESS === 'false'
+
   const browser = await puppeteer.launch({
-    headless: isMac ? false : true,
+    headless: forceHeadful ? false : (isMac ? false : true),
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
   })
