@@ -238,10 +238,11 @@ async function main() {
           await sendTelegram(adminChatId, msg)
         }
 
-        await sleep(10000 + Math.random() * 15000)
+        console.log(`  ⏳ Waiting 25 to 45 seconds before the next product to mimic human reading...`)
+        await sleep(25000 + Math.random() * 20000)
       } catch (err: any) {
         console.error(`  ❌ Error: ${err.message}`)
-        await sleep(15000)
+        await sleep(30000)
       }
     }
   } finally {
