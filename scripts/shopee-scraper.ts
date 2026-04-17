@@ -102,6 +102,15 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     const finalUrl = page.url()
     console.log(`  Final URL: ${finalUrl}`)
 
+    // 📸 MUST SCREENSHOT IMMEDIATELY BEFORE ANTI-BOT CLEARS THE SCREEN 📸
+    let screenshot = null
+    try {
+      const b64 = await page.screenshot({ type: 'jpeg', quality: 60, encoding: 'base64' })
+      screenshot = `data:image/jpeg;base64,${b64}`
+    } catch {
+      // Ignore if taking screenshot fails
+    }
+
     // ─── Simulate Human Interaction ───
     // Bot prevention looks for people who open a page and immediately leave or never move the mouse.
     
@@ -131,7 +140,7 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
       console.log(`  Intercepted API calls (${capturedUrls.length}):`)
       capturedUrls.slice(0, 10).forEach(u => console.log(`    ${u}`))
       console.log('  ⚠️  API data not captured. Page may have redirected to login.')
-      return { price: null, originalPrice: null, discount: null, inStock: false, imageUrl: null }
+      return { price: null, originalPrice: null, discount: null, inStock: false, imageUrl: null, screenshot: null }
     }
 
     // Shopee stores price in smallest unit (÷100000 = TWD)
@@ -147,14 +156,6 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
     
     // Construct full CDN URL for the product image
     const imageUrl = apiData.image ? `https://down-tw.img.susercontent.com/file/${apiData.image}` : null
-
-    // Take an actual screenshot of the browser viewport if price was found
-    let screenshot = null
-    if (price !== null) {
-      await sleep(1500) // Lowered wait to 1.5s to capture React render before bot-detection whites out the screen
-      const b64 = await page.screenshot({ type: 'jpeg', quality: 60, encoding: 'base64' })
-      screenshot = `data:image/jpeg;base64,${b64}`
-    }
 
     return { price, originalPrice, discount, inStock, imageUrl, screenshot }
   } finally {
