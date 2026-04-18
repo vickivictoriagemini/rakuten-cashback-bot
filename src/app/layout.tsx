@@ -24,6 +24,7 @@ export default function RootLayout({
               <Link href="/subscribers">Subscribers</Link>
               <Link href="/categories">Categories</Link>
               <Link href="/shopee">Shopee 🛒</Link>
+              <Link href="/momo">Momo 🍑</Link>
               <Link href="/settings">Settings</Link>
             </nav>
           </header>

@@ -91,3 +91,30 @@ model ShopeePriceHistory {
   screenshot    String?      // Base64 JPEG string
   scrapedAt     DateTime     @default(now())
 }
+
+// ── Momo Price Monitor ──────────────────────────────
+model MomoTarget {
+  id          Int      @id @default(autoincrement())
+  name        String   // User-friendly label 
+  url         String   @unique
+  targetPrice Float    // Alert when price drops to or below this
+  currency    String   @default("TWD")
+  active      Boolean  @default(true)
+  imageUrl    String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  history     MomoPriceHistory[]
+}
+
+model MomoPriceHistory {
+  id            Int          @id @default(autoincrement())
+  targetId      Int
+  target        MomoTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  price         Float
+  originalPrice Float?
+  discount      String?      // e.g. "85折" or "15% OFF"
+  inStock       Boolean      @default(true)
+  screenshot    String?      // Base64 JPEG string
+  scrapedAt     DateTime     @default(now())
+}
