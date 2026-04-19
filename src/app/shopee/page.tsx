@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 
 interface PriceHistory {
   id: number
@@ -224,11 +225,48 @@ export default function ShopeePage() {
 
                   {/* Price history */}
                   {isExpanded && (
-                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '12px 16px', background: 'rgba(0,0,0,0.2)' }}>
+                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '16px', background: 'rgba(0,0,0,0.2)' }}>
                       {(history[target.id] ?? []).length === 0 ? (
                         <p className="text-secondary" style={{ margin: 0, fontSize: '0.85rem' }}>No price history yet. Run the Pi 5 scraper to start collecting data.</p>
                       ) : (
-                        <table style={{ width: '100%', fontSize: '0.85rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                          
+                          {/* 📈 Price Trend Chart */}
+                          <div style={{ width: '100%', height: 220 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={[...history[target.id]].reverse().map(h => ({
+                                time: format(new Date(h.scrapedAt), 'MM/dd HH:mm'),
+                                price: h.price
+                              }))}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                                <XAxis dataKey="time" stroke="rgba(255,255,255,0.4)" fontSize={12} tickMargin={8} minTickGap={20} />
+                                <YAxis 
+                                  domain={['dataMin - 100', 'dataMax + 100']} 
+                                  stroke="rgba(255,255,255,0.4)" 
+                                  fontSize={12} 
+                                  tickFormatter={(value) => `$${value.toLocaleString()}`}
+                                  width={65}
+                                />
+                                <Tooltip 
+                                  contentStyle={{ background: '#1e1e2d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                                  itemStyle={{ color: '#ee4d2d', fontWeight: 'bold' }}
+                                  labelStyle={{ color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}
+                                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Price']}
+                                />
+                                <ReferenceLine y={target.targetPrice} stroke="#4ade80" strokeDasharray="4 4" label={{ position: 'insideTopLeft', value: 'Target', fill: '#4ade80', fontSize: 12 }} />
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="price" 
+                                  stroke="#ee4d2d" 
+                                  strokeWidth={3}
+                                  dot={{ fill: '#ee4d2d', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                                  activeDot={{ r: 6, fill: '#ee4d2d', stroke: '#fff' }}
+                                />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          <table style={{ width: '100%', fontSize: '0.85rem' }}>
                           <thead>
                             <tr style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'left' }}>
                               <th style={{ paddingBottom: '8px', fontWeight: 600 }}>Time</th>
@@ -265,6 +303,7 @@ export default function ShopeePage() {
                             ))}
                           </tbody>
                         </table>
+                        </div>
                       )}
                     </div>
                   )}

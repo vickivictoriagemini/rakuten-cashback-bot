@@ -153,15 +153,63 @@ async function scrapeShopeeProduct(url: string, browser: any): Promise<ScrapedPr
       return { price: null, originalPrice: null, discount: null, inStock: false, imageUrl: null, screenshot: null }
     }
 
+    // ─── Extract Actual Displayed Price (Visual Heuristic) ───
+    // The API might return original price (e.g. 3014) but UI shows 2953 due to vouchers/flash sales
+    // Since Shopee obsfuscates CSS, we search for the largest text matching "$X,XXX"
+    const visualPrice = await page.evaluate(() => {
+      let maxFontSize = 0
+      let bestPriceStr = null
+      
+      const elements = Array.from(document.querySelectorAll('*'))
+      for (const el of elements) {
+        // Skip hidden elements or scripts
+        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue
+        
+        // Grab direct text content (no children text)
+        let text = ''
+        for (const child of Array.from(el.childNodes)) {
+          if (child.nodeType === Node.TEXT_NODE) text += child.textContent
+        }
+        text = text.trim()
+        
+        // Matches "$2,953" or "NT$2,953" or "2,953"
+        const isPrice = text.match(/^(?:NT\$|\$)?\s*([\d,]+)$/i)
+        if (isPrice) {
+          const style = window.getComputedStyle(el)
+          // Ensure it's perfectly visible
+          if (style.display === 'none' || style.visibility === 'hidden') continue
+          
+          const fontSize = parseFloat(style.fontSize)
+          if (fontSize > maxFontSize) {
+            maxFontSize = fontSize
+            bestPriceStr = isPrice[1].replace(/,/g, '') // Keep just digits
+          }
+        }
+      }
+      return bestPriceStr ? parseInt(bestPriceStr, 10) : null
+    })
+
     // Shopee stores price in smallest unit (÷100000 = TWD)
-    const rawPrice    = apiData.price_min ?? apiData.price
+    const apiPrice    = (apiData.price_min ?? apiData.price)
     const rawOriginal = apiData.price_min_before_discount ?? apiData.price_before_discount
 
-    const price = rawPrice ? Math.round(rawPrice / 100000) : null
-    const originalPrice = (rawOriginal && rawOriginal !== rawPrice)
+    // 🏆 Fallback mechanism: use visual DOM price first, otherwise fallback to API
+    const parsedApiPrice = apiPrice ? Math.round(apiPrice / 100000) : null
+    const price = visualPrice ?? parsedApiPrice
+    
+    // Determine original price correctly based on what was used as the final price
+    const originalPrice = (rawOriginal && Math.round(rawOriginal / 100000) !== price)
       ? Math.round(rawOriginal / 100000)
       : null
-    const discount = apiData.discount ? `${apiData.discount}% OFF` : null
+      
+    // Discount from API might be inaccurate if doing Visual Price, but keep it for reference
+    let discount = apiData.discount ? `${apiData.discount}% OFF` : null
+    if (visualPrice && originalPrice && originalPrice > visualPrice) {
+      // Calculate real discount percentage
+      const discountPercent = Math.round(((originalPrice - visualPrice) / originalPrice) * 100)
+      discount = `${discountPercent}% OFF`
+    }
+    
     const inStock  = (apiData.stock ?? 0) > 0 || apiData.item_status === 'normal'
     
     // Construct full CDN URL for the product image
